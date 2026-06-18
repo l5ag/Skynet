@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piezómetros · L5AG Skynet</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--navy:#3D3D80;--lime:#BDFF00;--bg:#F2F2EE;--card:#fff;--text:#2C2C2A;--muted:#6B6B6B;--border:#E4E4DE;
+  --blue:#4A7FC1;--teal:#2A9D8F;--orange:#E76F51;--pink:#D4648A;--green:#57A773;--purple:#7B68A8;--red:#C0392B;--amber:#D4A017;--cyan:#1ABC9C}
+*{margin:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+.header{background:#fff;padding:.75rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;
+  border-bottom:3px solid;border-image:linear-gradient(90deg,var(--navy) 0%,var(--navy) 65%,var(--lime) 65%,var(--lime) 100%) 1}
+.header-left{display:flex;align-items:center;gap:1rem}
+.header-left img{height:40px;width:auto;object-fit:contain}
+.header-sep{width:1px;height:28px;background:#B4B2A9}
+.header-right{text-align:right;line-height:1.25}
+.header-right .pj-label{font-size:.6rem;letter-spacing:1.8px;text-transform:uppercase;color:#9090A8;font-weight:700}
+.header-right .pj-title{font-size:.95rem;font-weight:800;color:var(--navy);margin:1px 0}
+.breadcrumb{max-width:1200px;margin:1.5rem auto .5rem;padding:0 1.5rem;font-size:.75rem;color:var(--muted)}
+.breadcrumb a{color:var(--navy);text-decoration:none;font-weight:600}
+.breadcrumb a:hover{text-decoration:underline}
+.page-title{max-width:1200px;margin:0 auto .3rem;padding:0 1.5rem}
+.page-title h2{font-size:1.4rem;font-weight:800;color:var(--navy)}
+.page-title p{font-size:.82rem;color:var(--muted);margin-top:.25rem}
+
+/* Loading overlay */
+.loading-overlay{position:fixed;inset:0;background:rgba(242,242,238,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;transition:opacity .4s}
+.loading-overlay.hidden{opacity:0;pointer-events:none}
+.spinner{width:48px;height:48px;border:4px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay p{margin-top:1rem;font-size:.85rem;color:var(--muted);font-weight:600}
+.loading-overlay .progress-bar{width:240px;height:6px;background:var(--border);border-radius:3px;margin-top:.7rem;overflow:hidden}
+.loading-overlay .progress-fill{height:100%;background:var(--navy);border-radius:3px;width:0%;transition:width .3s}
+
+/* Tabs */
+.tabs-wrapper{max-width:1200px;margin:1.2rem auto 0;padding:0 1.5rem}
+.tabs{display:flex;gap:.5rem}
+.tab{padding:.55rem 1.3rem;border-radius:8px 8px 0 0;font-size:.82rem;font-weight:700;cursor:pointer;border:1px solid var(--border);border-bottom:none;background:var(--bg);color:var(--muted);transition:all .2s}
+.tab:hover{color:var(--navy);background:#fff}
+.tab.active{background:#fff;color:var(--navy);border-color:var(--navy);border-bottom-color:#fff;position:relative;z-index:2}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Content area */
+.content{max-width:1200px;margin:0 auto 2rem;padding:0 1.5rem;width:100%}
+.panel{background:#fff;border:1px solid var(--navy);border-radius:0 10px 10px 10px;padding:1.5rem}
+
+/* KPI row */
+.kpi-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.kpi{background:var(--bg);border-radius:8px;padding:.7rem 1rem;min-width:140px;flex:1}
+.kpi-label{font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700}
+.kpi-value{font-size:1.3rem;font-weight:800;color:var(--navy);margin-top:.15rem}
+.kpi-sub{font-size:.68rem;color:var(--muted);margin-top:.1rem}
+
+/* Chart cards */
+.chart-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+.chart-card{border:1px solid var(--border);border-radius:10px;padding:1.2rem;background:#fff}
+.chart-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.7rem;flex-wrap:wrap;gap:.3rem}
+.chart-title{font-size:.9rem;font-weight:800;color:var(--navy)}
+.chart-meta{font-size:.68rem;color:var(--muted)}
+.chart-meta span{margin-left:.8rem}
+.chart-container{position:relative;height:280px}
+.chart-container canvas{width:100%!important}
+
+/* Summary table */
+.summary-table{width:100%;border-collapse:collapse;font-size:.75rem;margin-top:1.5rem}
+.summary-table th{background:var(--navy);color:#fff;padding:.5rem .6rem;text-align:left;font-weight:700;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px}
+.summary-table td{padding:.45rem .6rem;border-bottom:1px solid var(--border)}
+.summary-table tr:hover td{background:rgba(61,61,128,.03)}
+.val-pos{color:var(--green);font-weight:700}
+.val-neg{color:var(--red);font-weight:700}
+.val-neutral{color:var(--text);font-weight:600}
+
+/* Footer */
+.footer{margin-top:auto;text-align:center;padding:1.5rem;font-size:.7rem;color:#999}
+.footer a{color:var(--navy);text-decoration:none}
+
+/* Responsive */
+@media(max-width:768px){
+  .header{padding:.5rem 1rem}
+  .breadcrumb,.page-title,.tabs-wrapper,.content{padding:0 .75rem}
+  .panel{padding:1rem}
+  .chart-container{height:220px}
+  .kpi-row{gap:.5rem}
+  .kpi{min-width:110px;padding:.5rem .7rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='30'%3E%3Ctext x='0' y='22' font-family='Inter,sans-serif' font-weight='800' font-size='18' fill='%233D3D80'%3ESENER%3C/text%3E%3C/svg%3E" alt="SENER">
+    <div class="header-sep"></div>
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='30'%3E%3Ctext x='0' y='22' font-family='Inter,sans-serif' font-weight='700' font-size='16' fill='%236B6B6B'%3EETS%3C/text%3E%3C/svg%3E" alt="ETS">
+  </div>
+  <div class="header-right">
+    <div class="pj-label">Control de auscultación</div>
+    <div class="pj-title">L5AG · Línea 5 Aperribai–Galdakao</div>
+  </div>
+</div>
+
+<div class="breadcrumb"><a href="../index.html">← Skynet</a> / <a href="auscultacion.html">Auscultación</a> / Piezómetros</div>
+<div class="page-title">
+  <h2>💧 Piezómetros</h2>
+  <p>Niveles freáticos y presiones intersticiales · Datos horarios y manuales</p>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p id="loadingMsg">Cargando datos de piezómetros…</p>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div class="tabs-wrapper">
+  <div class="tabs">
+    <div class="tab active" data-tab="beng" onclick="switchTab('beng')">Bengoetxe</div>
+    <div class="tab" data-tab="traza" onclick="switchTab('traza')">Traza</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="tab-content active" id="tab-beng">
+    <div class="panel">
+      <div class="kpi-row" id="kpi-beng"></div>
+      <div class="chart-grid" id="charts-beng"></div>
+      <table class="summary-table" id="table-beng"></table>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-traza">
+    <div class="panel">
+      <div class="kpi-row" id="kpi-traza"></div>
+      <div class="chart-grid" id="charts-traza"></div>
+      <table class="summary-table" id="table-traza"></table>
+    </div>
+  </div>
+</div>
+
+<div class="footer">SENER Mobility · Asistencia Técnica L5AG · Datos sincronizados desde <a href="https://hodei.ets-rfv.eus" target="_blank">Hodei</a></div>
+
+<script>
+/* ─── Configuration ─── */
+const GROUPS = {
+  beng: {
+    label: 'Bengoetxe',
+    piezos: ['PZ14','PZ18','PZ19']
+  },
+  traza: {
+    label: 'Traza',
+    piezos: ['PZ17','PZ16','PZ15','PZ08','PZ06','PZ05','PZ03','PZ02','PZ01']
+  }
+};
+
+const COLORS = [
+  '#3D3D80','#4A7FC1','#2A9D8F','#E76F51','#D4648A',
+  '#57A773','#7B68A8','#C0392B','#D4A017','#1ABC9C'
+];
+
+const DATA_BASE = '../data/CONTROL DE AUSCULTACION/PIEZOMETROS/';
+const MAIN_FILE = 'L5AG UTE-ACO Piezómetros.xlsx';
+
+/* ─── State ─── */
+let allPiezos = {};
+let precipData = [];
+let chartInstances = {};
+
+/* ─── Helpers ─── */
+function setProgress(pct, msg) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  if (msg) document.getElementById('loadingMsg').textContent = msg;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return dd+'/'+mm+'/'+yy;
+}
+
+function fmtNum(v, dec=2) {
+  if (v == null || isNaN(v)) return '–';
+  return Number(v).toFixed(dec).replace('.',',');
+}
+
+function excelDateToJS(serial) {
+  if (serial instanceof Date) return serial;
+  if (typeof serial === 'number') {
+    const d = new Date((serial - 25569) * 86400 * 1000);
+    return d;
+  }
+  if (typeof serial === 'string') {
+    const d = new Date(serial);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
+
+/* Aggregate high-frequency data to daily for chart performance */
+function aggregateDaily(readings) {
+  const map = {};
+  for (const r of readings) {
+    const key = fmtDate(r.fecha);
+    if (!key) continue;
+    if (!map[key]) map[key] = { fecha: r.fecha, cota: [], delta: [], prof: [] };
+    if (r.cota != null) map[key].cota.push(r.cota);
+    if (r.delta != null) map[key].delta.push(r.delta);
+    if (r.prof != null) map[key].prof.push(r.prof);
+  }
+  const result = [];
+  for (const key of Object.keys(map)) {
+    const g = map[key];
+    const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+    result.push({
+      fecha: g.fecha,
+      label: key,
+      cota: avg(g.cota),
+      delta: avg(g.delta),
+      prof: avg(g.prof)
+    });
+  }
+  result.sort((a,b) => a.fecha - b.fecha);
+  return result;
+}
+
+/* ─── Parse workbook ─── */
+function parseWorkbook(wb) {
+  setProgress(60, 'Procesando hojas de piezómetros…');
+
+  // Parse precipitation
+  const precSheet = wb.Sheets['Precipitaciones'];
+  if (precSheet) {
+    const raw = XLSX.utils.sheet_to_json(precSheet, {header:1, defval:null});
+    // Find the header row (FECHA)
+    let headerRow = -1;
+    for (let i = 0; i < Math.min(raw.length, 10); i++) {
+      if (raw[i] && String(raw[i][0]).toUpperCase().includes('FECHA')) {
+        headerRow = i; break;
+      }
+    }
+    if (headerRow >= 0) {
+      for (let i = headerRow + 1; i < raw.length; i++) {
+        const row = raw[i];
+        if (!row || !row[0]) continue;
+        const fecha = excelDateToJS(row[0]);
+        if (!fecha) continue;
+        precipData.push({ fecha, label: fmtDate(fecha), value: Number(row[1]) || 0 });
+      }
+    }
+  }
+
+  // Parse each piezometer sheet
+  const allNames = [];
+  for (const g of Object.values(GROUPS)) allNames.push(...g.piezos);
+
+  for (const name of allNames) {
+    const sheetName = name + '_lect';
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) { console.warn('Sheet not found:', sheetName); continue; }
+
+    const raw = XLSX.utils.sheet_to_json(sheet, {header:1, defval:null});
+
+    // Row 3 (index 2): header text "Piezómetro. PZxx. P.K. x+xxx. M.I/D."
+    const headerText = String(raw[2]?.[0] || '');
+    const pkMatch = headerText.match(/P\.K\.\s*([\d+]+)/);
+    const margenMatch = headerText.match(/(M\.[ID]\.?)/);
+
+    // Row 4 (index 3): Prof. instalación, Cota superficie
+    const profInst = raw[3]?.[1];
+    const cotaSup = raw[3]?.[4];
+
+    const piezo = {
+      name: name,
+      displayName: name.replace('PZ','PIE-'),
+      pk: pkMatch ? pkMatch[1] : '?',
+      margen: margenMatch ? margenMatch[1] : '?',
+      profInst: profInst != null && profInst !== '-' ? Number(profInst) : null,
+      cotaSup: cotaSup != null ? Number(cotaSup) : null,
+      readings: [],
+      daily: []
+    };
+
+    // Row 6+ (index 5+): data
+    for (let i = 5; i < raw.length; i++) {
+      const row = raw[i];
+      if (!row || !row[0]) continue;
+      const fecha = excelDateToJS(row[0]);
+      if (!fecha) continue;
+      piezo.readings.push({
+        fecha,
+        presion: row[1] != null ? Number(row[1]) : null,
+        prof: row[2] != null ? Number(row[2]) : null,
+        cota: row[3] != null ? Number(row[3]) : null,
+        delta: row[4] != null ? Number(row[4]) : null
+      });
+    }
+
+    piezo.daily = aggregateDaily(piezo.readings);
+    allPiezos[name] = piezo;
+  }
+
+  setProgress(80, 'Generando gráficas…');
+}
+
+/* ─── Build precipitación lookup ─── */
+function precipLookup() {
+  const map = {};
+  for (const p of precipData) map[p.label] = p.value;
+  return map;
+}
+
+/* ─── Render KPIs ─── */
+function renderKPIs(groupKey) {
+  const group = GROUPS[groupKey];
+  const container = document.getElementById('kpi-' + groupKey);
+  let totalReadings = 0;
+  let latestDate = null;
+  let activePiezos = 0;
+
+  for (const pName of group.piezos) {
+    const p = allPiezos[pName];
+    if (!p) continue;
+    totalReadings += p.readings.length;
+    activePiezos++;
+    if (p.daily.length) {
+      const last = p.daily[p.daily.length - 1].fecha;
+      if (!latestDate || last > latestDate) latestDate = last;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Piezómetros</div>
+      <div class="kpi-value">${activePiezos}</div>
+      <div class="kpi-sub">${group.label}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Lecturas totales</div>
+      <div class="kpi-value">${totalReadings.toLocaleString('es-ES')}</div>
+      <div class="kpi-sub">Horarias + manuales</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Última lectura</div>
+      <div class="kpi-value">${latestDate ? fmtDate(latestDate) : '–'}</div>
+      <div class="kpi-sub">Fecha más reciente</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Precipitaciones</div>
+      <div class="kpi-value">${precipData.length}</div>
+      <div class="kpi-sub">Días registrados</div>
+    </div>
+  `;
+}
+
+/* ─── Render charts ─── */
+function renderCharts(groupKey) {
+  const group = GROUPS[groupKey];
+  const container = document.getElementById('charts-' + groupKey);
+  const pMap = precipLookup();
+
+  container.innerHTML = '';
+
+  group.piezos.forEach((pName, idx) => {
+    const p = allPiezos[pName];
+    if (!p || !p.daily.length) return;
+
+    const color = COLORS[idx % COLORS.length];
+    const cardId = 'chart-card-' + groupKey + '-' + pName;
+    const canvasId = 'canvas-' + groupKey + '-' + pName;
+
+    const card = document.createElement('div');
+    card.className = 'chart-card';
+    card.id = cardId;
+
+    const lastReading = p.daily[p.daily.length - 1];
+    const firstReading = p.daily[0];
+
+    card.innerHTML = `
+      <div class="chart-header">
+        <div class="chart-title">${p.displayName}</div>
+        <div class="chart-meta">
+          <span>P.K. ${p.pk}</span>
+          <span>${p.margen}</span>
+          <span>Cota sup: ${fmtNum(p.cotaSup,2)} m</span>
+          ${p.profInst != null ? '<span>Prof. inst: '+fmtNum(p.profInst,1)+' m</span>' : ''}
+          <span>Lecturas: ${p.readings.length.toLocaleString('es-ES')}</span>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="${canvasId}"></canvas></div>
+    `;
+    container.appendChild(card);
+
+    // Build datasets
+    const labels = p.daily.map(d => d.label);
+    const cotaData = p.daily.map(d => d.cota);
+    const precipValues = labels.map(l => pMap[l] || 0);
+    const maxPrecip = Math.max(...precipValues, 1);
+
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'line',
+            label: 'Cota N.F. (msnm)',
+            data: cotaData,
+            borderColor: color,
+            backgroundColor: color + '20',
+            fill: true,
+            borderWidth: 1.5,
+            pointRadius: p.daily.length > 100 ? 0 : 2,
+            pointHoverRadius: 4,
+            tension: 0.3,
+            yAxisID: 'yCota',
+            order: 1
+          },
+          {
+            type: 'bar',
+            label: 'Precipitación (l/m²)',
+            data: precipValues,
+            backgroundColor: 'rgba(74,127,193,0.35)',
+            borderColor: 'rgba(74,127,193,0.5)',
+            borderWidth: 1,
+            yAxisID: 'yPrecip',
+            order: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: { font: { size: 10, family: 'Inter' }, usePointStyle: true, padding: 12 }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(44,44,42,.92)',
+            titleFont: { size: 11, family: 'Inter', weight: '700' },
+            bodyFont: { size: 11, family: 'Inter' },
+            padding: 10,
+            cornerRadius: 6,
+            callbacks: {
+              label: function(ctx) {
+                const val = ctx.parsed.y;
+                if (ctx.dataset.yAxisID === 'yPrecip') return 'Precip: ' + fmtNum(val,1) + ' l/m²';
+                return 'Cota N.F.: ' + fmtNum(val,2) + ' msnm';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 12,
+              font: { size: 9, family: 'Inter' },
+              color: '#999'
+            },
+            grid: { display: false }
+          },
+          yCota: {
+            position: 'left',
+            title: { display: true, text: 'Cota N.F. (msnm)', font: { size: 10, family: 'Inter', weight: '600' }, color: '#666' },
+            ticks: { font: { size: 9, family: 'Inter' }, color: '#666' },
+            grid: { color: 'rgba(0,0,0,.06)' }
+          },
+          yPrecip: {
+            position: 'right',
+            reverse: true,
+            min: 0,
+            max: maxPrecip * 3,
+            title: { display: true, text: 'Precip. (l/m²)', font: { size: 10, family: 'Inter', weight: '600' }, color: '#4A7FC1' },
+            ticks: { font: { size: 9, family: 'Inter' }, color: '#4A7FC1' },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    chartInstances[canvasId] = chart;
+  });
+}
+
+/* ─── Render summary table ─── */
+function renderTable(groupKey) {
+  const group = GROUPS[groupKey];
+  const table = document.getElementById('table-' + groupKey);
+
+  let html = `<thead><tr>
+    <th>Piezómetro</th><th>P.K.</th><th>Margen</th>
+    <th>Cota Sup. (m)</th><th>Prof. Inst. (m)</th>
+    <th>Lecturas</th><th>Período</th>
+    <th>Última Cota N.F.</th><th>Δ N.F. (m)</th>
+  </tr></thead><tbody>`;
+
+  for (const pName of group.piezos) {
+    const p = allPiezos[pName];
+    if (!p) continue;
+
+    const last = p.daily.length ? p.daily[p.daily.length - 1] : null;
+    const first = p.daily.length ? p.daily[0] : null;
+    const deltaClass = last && last.delta != null ? (last.delta >= 0 ? 'val-pos' : 'val-neg') : 'val-neutral';
+
+    html += `<tr>
+      <td style="font-weight:700;color:var(--navy)">${p.displayName}</td>
+      <td>${p.pk}</td>
+      <td>${p.margen}</td>
+      <td>${fmtNum(p.cotaSup, 2)}</td>
+      <td>${p.profInst != null ? fmtNum(p.profInst, 1) : '–'}</td>
+      <td>${p.readings.length.toLocaleString('es-ES')}</td>
+      <td>${first ? fmtDate(first.fecha) : '–'} → ${last ? fmtDate(last.fecha) : '–'}</td>
+      <td style="font-weight:700">${last ? fmtNum(last.cota, 2) : '–'} msnm</td>
+      <td class="${deltaClass}">${last && last.delta != null ? (last.delta >= 0 ? '+' : '') + fmtNum(last.delta, 2) : '–'}</td>
+    </tr>`;
+  }
+
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+/* ─── Tab switch ─── */
+function switchTab(key) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === key));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + key));
+}
+
+/* ─── Main ─── */
+async function main() {
+  try {
+    setProgress(5, 'Descargando fichero de piezómetros…');
+
+    const url = DATA_BASE + MAIN_FILE;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('No se pudo descargar: ' + resp.status);
+
+    setProgress(30, 'Leyendo fichero Excel…');
+    const buf = await resp.arrayBuffer();
+
+    setProgress(50, 'Parseando hojas…');
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+
+    parseWorkbook(wb);
+
+    setProgress(85, 'Renderizando vista Bengoetxe…');
+    renderKPIs('beng');
+    renderCharts('beng');
+    renderTable('beng');
+
+    setProgress(95, 'Renderizando vista Traza…');
+    renderKPIs('traza');
+    renderCharts('traza');
+    renderTable('traza');
+
+    setProgress(100, '¡Listo!');
+    setTimeout(() => {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+    }, 400);
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('loadingMsg').textContent = '⚠️ Error: ' + err.message;
+    document.getElementById('progressFill').style.background = '#C0392B';
+  }
+}
+
+main();
+</script>
+</body>
+</html>
