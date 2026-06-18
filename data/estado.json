@@ -1,0 +1,38 @@
+{
+  "proyecto": "L5AG · Línea 5 Aperribai–Galdakao",
+  "actualizado": "2026-06-18T14:00:00",
+  "kpis": {
+    "certificado_acumulado": 21921163.69,
+    "presupuesto_modificado": 95161684.14,
+    "plazo_finalizacion": "2028-11-12"
+  },
+  "frentes": [
+    {
+      "nombre": "EJE-08 OLAP",
+      "metodo": "Rozadora",
+      "pk_actual": "1+480",
+      "pk_cale": "1+550",
+      "avance_medio_m_dia": 2.1,
+      "progreso_pct": 80
+    },
+    {
+      "nombre": "EJE-08 OLBE",
+      "metodo": "Rozadora",
+      "pk_actual": "0+920",
+      "avance_medio_m_dia": 2.1,
+      "progreso_pct": 50
+    },
+    {
+      "nombre": "EJE-19 ABGA",
+      "metodo": "Convencional",
+      "pk_actual": "0+340",
+      "avance_medio_m_dia": 1.5,
+      "progreso_pct": 35
+    }
+  ],
+  "alertas_subsidencia": [
+    { "hito": "H-12", "valor_mm": 14.0, "limite_mm": 12, "fecha": "2026-06-16" },
+    { "hito": "H-08", "valor_mm": 13.5, "limite_mm": 12, "fecha": "2026-06-15" }
+  ],
+  "test": "Si ves esto, Nextcloud → fetch funciona correctamente"
+}
