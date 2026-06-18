@@ -1,4 +1,4 @@
-name: Sync estado.json desde Hodei
+name: Sync datos desde Hodei
 
 on:
   schedule:
@@ -10,29 +10,65 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
+    env:
+      HODEI_SHARE: "https://hodei.ets-rfv.eus/s/adRQL9Bx3wPC5mw"
+      UA: "Mozilla/5.0"
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Descargar estado.json de Hodei
+      # ── estado_test.json (fichero suelto en la raíz de la share) ──
+      - name: Descargar estado.json
         run: |
           mkdir -p data
           curl -sS -f -L -o data/estado.json \
-            -H "User-Agent: Mozilla/5.0" \
-            "https://hodei.ets-rfv.eus/s/adRQL9Bx3wPC5mw/download?path=%2Festado_test.json"
-          echo "Descargado OK — primeros 100 chars:"
-          head -c 100 data/estado.json
-          echo ""
+            -H "User-Agent: $UA" \
+            "$HODEI_SHARE/download?path=%2Festado_test.json"
+          echo "estado.json OK ($(wc -c < data/estado.json) bytes)"
           cat data/estado.json | python3 -m json.tool > /dev/null && echo "JSON valido" || exit 1
 
-      - name: Commit solo si hay cambios
+      # ── CONTROL DE AUSCULTACION (carpeta completa como zip) ──
+      - name: Descargar CONTROL DE AUSCULTACION
+        run: |
+          echo "Descargando carpeta completa..."
+          curl -sS -f -L -o /tmp/auscultacion.zip \
+            -H "User-Agent: $UA" \
+            "$HODEI_SHARE/download?path=%2FCONTROL%20DE%20AUSCULTACION"
+          echo "ZIP descargado ($(du -h /tmp/auscultacion.zip | cut -f1))"
+
+      - name: Extraer CONTROL DE AUSCULTACION
+        run: |
+          # Limpiar carpeta destino para reflejar estado actual de Hodei
+          rm -rf "data/CONTROL DE AUSCULTACION"
+          mkdir -p "data/CONTROL DE AUSCULTACION"
+
+          # Extraer zip
+          cd /tmp
+          unzip -o auscultacion.zip -d extracted
+
+          # Mover contenido al repo (Nextcloud puede meter carpeta raiz o no)
+          if [ -d "extracted/CONTROL DE AUSCULTACION" ]; then
+            cp -r "extracted/CONTROL DE AUSCULTACION/"* "$GITHUB_WORKSPACE/data/CONTROL DE AUSCULTACION/"
+          else
+            cp -r extracted/* "$GITHUB_WORKSPACE/data/CONTROL DE AUSCULTACION/"
+          fi
+
+          echo "Contenido extraido:"
+          find "$GITHUB_WORKSPACE/data/CONTROL DE AUSCULTACION" -type f | head -30
+          echo "---"
+          du -sh "$GITHUB_WORKSPACE/data/CONTROL DE AUSCULTACION"
+
+      # ── Commit si hay cambios ──
+      - name: Commit cambios
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/estado.json
+          git add data/
           if git diff --cached --quiet; then
             echo "Sin cambios"
           else
-            git commit -m "Actualizar estado.json"
+            git commit -m "Sync datos desde Hodei $(date -u +%Y-%m-%dT%H:%M)"
             git push
           fi
