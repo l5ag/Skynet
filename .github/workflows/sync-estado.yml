@@ -15,9 +15,12 @@ jobs:
       - name: Descargar estado.json de Hodei
         run: |
           mkdir -p data
-          curl -sS -f -o data/estado.json \
-            "https://hodei.ets-rfv.eus/s/adRQL9Bx3wPC5mw/download/estado_test.json"
-          echo "Descargado OK"
+          curl -sS -f -L -o data/estado.json \
+            -H "User-Agent: Mozilla/5.0" \
+            "https://hodei.ets-rfv.eus/s/adRQL9Bx3wPC5mw/download?path=%2Festado_test.json"
+          echo "Descargado OK — primeros 100 chars:"
+          head -c 100 data/estado.json
+          echo ""
           cat data/estado.json | python3 -m json.tool > /dev/null && echo "JSON valido" || exit 1
 
       - name: Commit solo si hay cambios
